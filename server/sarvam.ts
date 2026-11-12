@@ -5,7 +5,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SarvamAIClient } from "sarvamai";
-import { UserError } from "./gemini";
+import { UserError, isNetworkError } from "./errors";
 import { fmtStamp, turnsFromEntries } from "./text";
 
 export const sarvamKey = () => process.env.SARVAM_API_KEY?.trim() || "";
@@ -15,14 +15,26 @@ export const SARVAM_NAME = "Sarvam Saaras v4";
 // codemix keeps English words in English letters inside Tamil sentences; verbatim also keeps filler words.
 export type SarvamMode = "codemix" | "verbatim";
 
+// What the person reads for anything Sarvam, or the connection to it, reports. The raw text goes to the log only (see describeError).
+// Sarvam's own failure text starts with the status, for example `400:{"error":...}`, so that is read when no status is given.
+export function sarvamMessage(raw: string, status?: number): string {
+  const code = status ?? (Number(/^\s*(\d{3})\b/.exec(raw)?.[1]) || undefined);
+  if (code === 401 || code === 403) return "Sarvam did not accept the API key. Check SARVAM_API_KEY in .env.";
+  if (code === 402 || /insufficient|credit|balance/i.test(raw)) return "The Sarvam account is out of credits. Add credits at dashboard.sarvam.ai and try again.";
+  if (code === 429) return "Sarvam is rate limiting this key. Wait a minute and try again.";
+  if (code === 413 || /too large|file size/i.test(raw)) return "Sarvam says this recording is too large. Try a shorter recording.";
+  if (code === 400 && /context length|input length|too long|exceeds/i.test(raw))
+    return "Sarvam could not process this recording in one piece. This can happen when a long recording has constant background noise. Try a shorter section of it.";
+  if (code !== undefined && code >= 500) return "Sarvam is having trouble on its side. Try again in a few minutes.";
+  if (isNetworkError(raw)) return "Pechu could not reach Sarvam. Check the internet connection and try again.";
+  return "Sarvam could not transcribe this recording. Try again, and if it keeps failing, try a shorter recording.";
+}
+
 function sarvamError(e: unknown): Error {
   if (e instanceof UserError) return e;
   const status = (e as { statusCode?: number; status?: number } | null)?.statusCode ?? (e as { status?: number } | null)?.status;
   const raw = e instanceof Error ? e.message : String(e);
-  if (status === 401 || status === 403) return new UserError("Sarvam did not accept the API key. Check SARVAM_API_KEY in .env.");
-  if (status === 402 || /insufficient|credit|balance/i.test(raw)) return new UserError("The Sarvam account is out of credits. Add credits at dashboard.sarvam.ai and try again.");
-  if (status === 429) return new UserError("Sarvam is rate limiting this key. Wait a minute and try again.");
-  return new UserError(`Sarvam could not transcribe this audio: ${raw.slice(0, 200)}`);
+  return new UserError(sarvamMessage(raw, status), { cause: e });
 }
 
 const PARAGRAPH_SECONDS = 30; // start a new paragraph this long after the paragraph began...
@@ -75,7 +87,10 @@ export async function transcribeWithSarvam(
     onProgress?.("Transcribing with Sarvam");
     await job.waitUntilComplete(1, 3 * 3600); // check every second, give up after 3 hours
     const results = await job.getFileResults();
-    if (results.failed.length) throw new UserError(`Sarvam could not transcribe this audio: ${results.failed[0]!.error_message}`);
+    if (results.failed.length) {
+      const raw = String(results.failed[0]!.error_message ?? "");
+      throw new UserError(sarvamMessage(raw), { cause: new Error(raw) });
+    }
     await job.downloadOutputs(dir);
     const file = readdirSync(dir).find((f) => f.endsWith(".json"));
     if (!file) throw new UserError("Sarvam finished but returned no transcript.");

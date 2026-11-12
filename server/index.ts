@@ -254,7 +254,8 @@ async function api(req: Request, url: URL, server: Bun.Server<live.LiveData>): P
           try {
             patch.notes = validateNotes(b.notes); // old or new shape in, new shape stored
           } catch (e) {
-            throw new HttpError(400, `Those notes are not valid: ${(e as Error).message}.`);
+            log("notes.invalid", { id, message: (e as Error).message }); // the detail is for the log, not the screen
+            throw new HttpError(400, "Those notes could not be saved because they are not in the expected format. Reload the page and try again.");
           }
         }
         if (!Object.keys(patch).length) throw new HttpError(400, "Send title, transcript, transcriptEnglish and/or notes.");

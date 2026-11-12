@@ -1,5 +1,5 @@
 import { assertWithinLimit } from "./audio";
-import { flowFromEnglish, friendlyError, generateNotes, notesFromEnglish, transcribeFile, validateNotes, type TranscribeMode } from "./gemini";
+import { describeError, flowFromEnglish, friendlyError, generateNotes, notesFromEnglish, transcribeFile, validateNotes, type TranscribeMode } from "./gemini";
 import { SARVAM_NAME, sarvamEnabled, transcribeWithSarvam } from "./sarvam";
 import { ensureAudio, getMeeting, updateMeeting, type Meeting } from "./store";
 
@@ -8,7 +8,7 @@ const running = new Set<string>();
 export const activeJobs = () => running.size; // the server waits for these on shutdown
 
 const fail = (id: string, e: unknown) => {
-  console.error(`[job ${id}]`, friendlyError(e));
+  console.error(`[job ${id}]`, describeError(e));
   updateMeeting(id, { status: "error", error: friendlyError(e), progress: undefined });
 };
 
@@ -51,7 +51,7 @@ async function refineThenNotes(id: string) {
       const { text, by } = await transcribeAudio(path, m.audio.mime, "speakers", (progress) => updateMeeting(id, { progress }));
       updateMeeting(id, { transcriptLive: m.transcript, transcript: text, transcriber: by, refineError: undefined });
     } catch (e) {
-      console.error(`[job ${id}] second pass skipped:`, friendlyError(e));
+      console.error(`[job ${id}] second pass skipped:`, describeError(e));
       updateMeeting(id, { refineError: friendlyError(e) });
     }
   }

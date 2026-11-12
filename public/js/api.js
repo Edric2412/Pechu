@@ -1,28 +1,38 @@
 // Thin client for the Pechu server. Every call throws an Error with a readable message.
 
+// Plain wording for a failed call. Cloudflare and other proxies answer with a web page, not JSON, so the status is all there is.
+export function messageForStatus(status) {
+  if (status === 413) return 'That file is too large. The limit is 100 MB.';
+  if (status === 429) return 'Too many requests. Wait a minute and try again.';
+  if (status >= 500) return 'Pechu could not be reached right now. Try again in a minute.';
+  return `Something went wrong (${status}). Try again.`;
+}
+// A call that never got an answer (no internet, Pechu stopped).
+const go = (url, init) => fetch(url, init).catch(() => { throw new Error('Could not reach Pechu. Check that it is running and your internet connection works.'); });
+
 async function parse(res) {
   let body = null;
   try { body = await res.json(); } catch { /* empty body */ }
   if (res.status === 401 && /sign in/i.test(body?.error || '')) window.dispatchEvent(new Event('pechu:signin'));
-  if (!res.ok) throw new Error(body?.error || `Something went wrong (${res.status}).`);
+  if (!res.ok) throw new Error(body?.error || messageForStatus(res.status));
   return body;
 }
-const json = (method, url, data) => fetch(url, {
+const json = (method, url, data) => go(url, {
   method, headers: { 'content-type': 'application/json' }, body: data == null ? undefined : JSON.stringify(data),
 }).then(parse);
 
 export const api = {
-  auth: () => fetch('/api/auth').then(parse),
+  auth: () => go('/api/auth').then(parse),
   login: (password) => json('POST', '/api/login', { password }),
   logout: () => json('POST', '/api/logout'),
-  status: () => fetch('/api/status').then(parse),
+  status: () => go('/api/status').then(parse),
   saveKey: (key) => json('POST', '/api/key', { key }),
-  meetings: () => fetch('/api/meetings').then(parse),
-  meeting: (id) => fetch(`/api/meetings/${encodeURIComponent(id)}`).then(parse),
+  meetings: () => go('/api/meetings').then(parse),
+  meeting: (id) => go(`/api/meetings/${encodeURIComponent(id)}`).then(parse),
   createMeeting: (data) => json('POST', '/api/meetings', data),
   patchMeeting: (id, data) => json('PATCH', `/api/meetings/${encodeURIComponent(id)}`, data),
   deleteMeeting: (id) => json('DELETE', `/api/meetings/${encodeURIComponent(id)}`),
-  putAudio: (id, blob) => fetch(`/api/meetings/${encodeURIComponent(id)}/audio`, {
+  putAudio: (id, blob) => go(`/api/meetings/${encodeURIComponent(id)}/audio`, {
     method: 'PUT', headers: { 'content-type': blob.type || 'audio/webm' }, body: blob,
   }).then(parse),
   writeNotes: (id) => json('POST', `/api/meetings/${encodeURIComponent(id)}/notes`),
@@ -48,7 +58,7 @@ export const api = {
         let body = null;
         try { body = JSON.parse(xhr.responseText); } catch { /* ignore */ }
         if (xhr.status >= 200 && xhr.status < 300) resolve(body);
-        else reject(new Error(body?.error || `Upload failed (${xhr.status}).`));
+        else reject(new Error(body?.error || messageForStatus(xhr.status)));
       };
       xhr.send(fd);
     });

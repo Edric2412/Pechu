@@ -218,7 +218,8 @@ function friendly(err) {
   if (n === 'NotFoundError') return 'No microphone was found on this computer.';
   if (n === 'OverconstrainedError') return 'That audio input is not available any more. Choose another one.';
   if (n === 'NotReadableError') return 'The microphone is busy in another app.';
-  return err?.message || 'Recording could not start.';
+  // our own messages (for example about tab audio) are plain; the browser's own error text is not shown
+  return err instanceof DOMException || !err?.message ? 'Recording could not start. Check the microphone and try again.' : err.message;
 }
 
 // Pause: the audio file and the clock stop, and the live captions get silence (tracks are muted) so the connection stays open.

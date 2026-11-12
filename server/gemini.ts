@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PART_SECONDS, SPEAKER_PART_SECONDS, cleanup, prepareParts } from "./audio";
 import { getKey, maskKey } from "./env";
-import { UserError } from "./errors";
+import { UserError, isNetworkError } from "./errors";
 import { DRAFTS_NOTE, FLOW_PROMPT, NOTES_PROMPT, PART_PROMPT, TRANSLATE_PROMPT } from "./prompts";
 import { chunkText, extractWords, turnsFromWords } from "./text";
 import type { FlowNode, Item, Notes, Process, ProcStep } from "./store";
@@ -45,9 +45,23 @@ export function friendlyError(e: unknown): string {
     msg = "The Gemini quota or rate limit was reached. Wait a little, or check your Google plan, then try again.";
   else if (status === 503 || /overloaded|UNAVAILABLE/i.test(raw))
     msg = "Gemini is busy right now. Try again in a minute.";
+  else if (isNetworkError(raw)) msg = "Pechu could not reach the service. Check the internet connection and try again.";
+  else if (/ENOSPC/.test(raw)) msg = "The disk on this computer is full. Free some space and try again.";
+  else if (status !== undefined && status >= 500) msg = "The service had a problem on its side. Try again in a few minutes.";
+  else if (/Audio conversion failed|No audio was found/i.test(raw)) msg = "Pechu could not read this audio file. Try exporting it as MP3 or WAV, then upload it again.";
+  else msg = "Something went wrong. Please try again. If it keeps happening, the details are in Pechu's log."; // never show raw error text
   const key = getKey();
   if (key) msg = msg.split(key).join(maskKey(key));
   return msg.slice(0, 300);
+}
+
+// The full technical text of an error, for Pechu's own log and never for the screen. Keys are masked, and the cause is kept.
+export function describeError(e: unknown): string {
+  let raw = errText(e);
+  const cause = (e as { cause?: unknown } | null)?.cause;
+  if (cause) raw += ` | cause: ${errText(cause)}`;
+  for (const k of [getKey(), process.env.SARVAM_API_KEY?.trim() ?? ""]) if (k) raw = raw.split(k).join(maskKey(k));
+  return raw.slice(0, 800);
 }
 
 // --- models ---

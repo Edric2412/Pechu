@@ -3,6 +3,7 @@
 // if it cannot connect or fails during the call, the same session moves to Gemini's live transcription so captions continue.
 import type { ServerWebSocket } from "bun";
 import { getKey, maskKey } from "./env";
+import { isNetworkError } from "./errors";
 import { SARVAM_NAME, sarvamEnabled, sarvamKey } from "./sarvam";
 
 // The *_LIVE_URL variables exist only so tests can point the proxy at a local stand-in.
@@ -16,6 +17,16 @@ const NAME: Record<Provider, string> = { sarvam: SARVAM_NAME, gemini: "Gemini 3.
 
 type Upstream = { send(pcm: Uint8Array): void; end(): void; close(): void };
 // What an upstream tells the proxy. fail = could not start or broke down; closed = ended normally.
+// What the person reads when live captions fail. What the service really said goes to the log (pass `who`), never to the screen.
+export function liveReason(raw: string, who?: string): string {
+  if (who) console.error(`[live] ${who} said: ${raw}`);
+  if (isNetworkError(raw) || /^connection ended|\bcode \d{4}\b/i.test(raw)) return "Live captions lost their connection.";
+  if (/quota|RESOURCE_EXHAUSTED|rate limit|\b429\b/i.test(raw)) return "Live captions hit a usage limit.";
+  if (/API key|PERMISSION_DENIED|UNAUTHENTICATED|\b40[13]\b/i.test(raw)) return "The live captions service did not accept the API key.";
+  if (raw.length > 120 || /[{}]/.test(raw)) return "Live captions had a problem.";
+  return raw;
+}
+
 type Events = { ready(): void; interim(text: string): void; final(text: string): void; fail(reason: string): void; closed(): void };
 
 export type LiveData = {
@@ -68,14 +79,14 @@ function connectGemini(d: LiveData, ev: Events): Upstream {
     const sc = m.serverContent;
     if (sc?.interimInputTranscription?.text) ev.interim(sc.interimInputTranscription.text);
     if (sc?.inputTranscription?.text) ev.final(sc.inputTranscription.text);
-    if (m.error) ev.fail(String(m.error.message ?? "Live transcription failed."));
+    if (m.error) ev.fail(liveReason(String(m.error.message ?? "Live transcription failed."), "Google"));
   };
   up.onerror = () => ev.fail("Could not reach Google's live transcription.");
   up.onclose = (e) => {
     clearTimeout(giveUp);
     if (e.code === 1000 || e.code === 1005) return ev.closed(); // 1000 = normal end, 1005 = no code given
     const key = getKey();
-    ev.fail((e.reason || `connection ended (code ${e.code})`).split(key || "\0").join(maskKey(key)).slice(0, 300));
+    ev.fail(liveReason((e.reason || `connection ended (code ${e.code})`).split(key || "\0").join(maskKey(key)).slice(0, 300), "Google"));
   };
 
   return {
@@ -109,7 +120,7 @@ function connectSarvam(d: LiveData, ev: Events): Upstream {
       case "session.begin": ready = true; clearTimeout(giveUp); ev.ready(); break;
       case "transcript.partial": if (m.text) ev.interim(m.text); break;
       case "transcript.final": if (m.text) ev.final(m.text); break;
-      case "error": if (m.is_fatal) ev.fail(String(m.message ?? "Sarvam live transcription failed.")); break;
+      case "error": if (m.is_fatal) ev.fail(liveReason(String(m.message ?? "Sarvam live transcription failed."), "Sarvam")); break;
     }
   };
   up.onerror = () => ev.fail("Could not reach Sarvam's live transcription.");
