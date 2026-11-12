@@ -114,7 +114,7 @@ export function recordPage({ navigate }) {
       h('div', { class: 'field' }, h('label', { for: 'lang' }, 'Language'), langSel),
       h('div', { class: 'field' }, h('span', { class: 'label' }, 'Transcript style'), modeSeg),
       h('p', { class: 'hint push', style: { paddingTop: '8px' } }, 'On an online call, wear headphones so the microphone does not record the speakers a second time.'),
-      state.status?.transcriber === 'sarvam' ? h('p', { class: 'hint', style: { paddingTop: '8px' } }, 'Live captions become your transcript. To make it more accurate, press “Improve transcript” on the meeting afterwards. Nothing is charged until you do.') : null));
+      state.status?.transcriber === 'sarvam' ? h('p', { class: 'hint', style: { paddingTop: '8px' } }, 'Live captions become your transcript. You can improve it with AI on the meeting afterwards.') : null));
 
   // ---------- live transcript ----------
   const linesBox = h('div', { class: 'lines grow', role: 'log', 'aria-live': 'polite', 'aria-label': 'Live transcript' });

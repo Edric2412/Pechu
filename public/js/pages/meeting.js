@@ -1,5 +1,5 @@
 // One meeting: progress while it is being processed, then Transcript / Summary / Flow chart tabs.
-import { h, icon, tabs, segmented, swap, fadeIn, whenLabel, duration, wordCount, tamilShare, copyText, store, save } from '../ui.js';
+import { h, icon, tabs, segmented, swap, fadeIn, whenLabel, duration, wordCount, tamilShare, copyText, store, save, confirmDialog } from '../ui.js';
 import { api } from '../api.js';
 import { refreshMeetings, state } from '../store.js';
 import { renderFlow, svgToString } from '../flow.js';
@@ -7,7 +7,7 @@ import { renderProcess, processToSvgString } from '../process-flow.js';
 import { summaryView, normalizeNotes, applyEdit, notesToMarkdown } from '../summary-view.js';
 import { transcriptBody, highlightAt, speakerList, renameSpeakerInText, parseTurns } from '../transcript-view.js';
 import { svgToPngBlob, downloadBlob, printNotes } from '../export.js';
-import { PER_MINUTE, PER_MINUTE_SPEAKERS, priceLabel } from '../sarvam-cost.js';
+import { improveLines } from '../sarvam-cost.js';
 
 const AUTO_TITLE = /^Meeting · /;
 const STAMP = /^\[(?:\d+:)?\d{1,2}:\d{2}\]\s+/gm;
@@ -81,7 +81,7 @@ export function meetingPage({ params, navigate }) {
     };
     const confirmSpeakers = () => {
       actions.replaceChildren(
-        h('span', { class: 'muted', style: { alignSelf: 'center', maxWidth: '340px', textAlign: 'right' } }, `Transcribe the recording again with speaker labels? ${viaSarvam() ? `Sarvam charges ${priceLabel(m.durationSec, true)} for this. ` : ''}This replaces the transcript and notes.`),
+        h('span', { class: 'muted', style: { alignSelf: 'center', maxWidth: '340px', textAlign: 'right' } }, 'Transcribe the recording again with speaker labels? This replaces the transcript and notes.'),
         h('button', { class: 'btn sm primary', type: 'button', onclick: identifySpeakers }, 'Identify speakers'),
         h('button', { class: 'btn sm', type: 'button', onclick: showActions }, 'Cancel'));
     };
@@ -105,6 +105,11 @@ export function meetingPage({ params, navigate }) {
   }
   const identifySpeakers = () => run(() => api.transcribeAgain(id, true));
   const improveTranscript = () => run(() => api.transcribeAgain(id, false));
+  // The button only asks; the pop-up says what it costs and the run starts only after the person confirms.
+  const askImprove = async () => {
+    const yes = await confirmDialog({ title: 'Improve this transcript with AI?', lines: improveLines({ transcriber: m.transcriber, durationSec: m.durationSec }), confirmLabel: 'Improve' });
+    if (yes) improveTranscript();
+  };
   const viaSarvam = () => state.status?.transcriber === 'sarvam'; // the paid transcriber is on
   const transcribeAgain = () => run(() => api.transcribeAgain(id));
   const rewrite = () => run(() => api.writeNotes(id));
@@ -196,18 +201,13 @@ export function meetingPage({ params, navigate }) {
       await load(false);
     } catch (err) { problem(err); }
   }
-  // A live recording is written up from its live captions. Listening to the saved audio again with Sarvam costs money, so it is
-  // never automatic: this card is where the person chooses it, with the price on each button.
+  // A live recording is written up from its live captions. Running Sarvam on the saved audio costs credits, so it is never
+  // automatic: this is the one short prompt for it, and the details are in the pop-up after pressing the button.
   function improveCard() {
     if (m.source !== 'live' || !m.audio || m.transcriptLive || working() || !viaSarvam()) return null;
     return h('div', { class: 'improve', role: 'region', 'aria-label': 'Improve this transcript' }, icon('wave'),
-      h('div', null,
-        h('strong', null, 'This transcript comes from the live captions. '),
-        'For a more accurate one, Sarvam can listen to the saved recording again. It only runs when you press a button and takes a few minutes.',
-        h('div', { class: 'acts' },
-          h('button', { class: 'btn sm primary', type: 'button', onclick: improveTranscript }, `Improve transcript · ${priceLabel(m.durationSec, false)}`),
-          h('button', { class: 'btn sm', type: 'button', onclick: identifySpeakers }, `Improve and identify speakers · ${priceLabel(m.durationSec, true)}`)),
-        h('p', { class: 'hint' }, `Sarvam charges ₹${PER_MINUTE.toFixed(2)} a minute, or ₹${PER_MINUTE_SPEAKERS.toFixed(2)} with speaker labels, before tax. The live captions stay under “Live captions”, and the notes are rewritten from the new transcript.`)));
+      h('div', { class: 'txt' }, h('strong', null, 'Made from live captions. '), 'Run it through Sarvam again for a more accurate transcript.'),
+      h('button', { class: 'btn sm primary', type: 'button', onclick: askImprove }, 'Improve with AI'));
   }
   function transcriptView() {
     const hasEn = !!m.transcriptEnglish;

@@ -14,6 +14,23 @@ export function h(tag, props, ...kids) {
   add(el, kids);
   return el;
 }
+// A small confirmation pop-up. Resolves true when the person confirms and false for anything else (Cancel, Escape, a click outside).
+// Cancel has the focus first, so pressing Enter never confirms something that costs money by accident.
+export function confirmDialog({ title, lines = [], confirmLabel = 'Continue', cancelLabel = 'Cancel' }) {
+  return new Promise((resolve) => {
+    const dlg = h('dialog', { class: 'modal', 'aria-labelledby': 'modal-title' },
+      h('h2', { id: 'modal-title' }, title),
+      ...lines.map((t) => h('p', null, t)),
+      h('div', { class: 'acts' },
+        h('button', { class: 'btn sm', type: 'button', onclick: () => dlg.close('cancel') }, cancelLabel),
+        h('button', { class: 'btn sm primary', type: 'button', onclick: () => dlg.close('ok') }, confirmLabel)));
+    dlg.addEventListener('close', () => { dlg.remove(); resolve(dlg.returnValue === 'ok'); });
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close('cancel'); });
+    document.body.append(dlg);
+    dlg.showModal();
+  });
+}
+
 export function add(el, kids) {
   for (const k of kids.flat(Infinity)) {
     if (k == null || k === false) continue;
