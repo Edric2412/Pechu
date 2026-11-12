@@ -1,3 +1,4 @@
+import { assertWithinLimit } from "./audio";
 import { flowFromEnglish, friendlyError, generateNotes, notesFromEnglish, transcribeFile, validateNotes, type TranscribeMode } from "./gemini";
 import { SARVAM_NAME, sarvamEnabled, transcribeWithSarvam } from "./sarvam";
 import { ensureAudio, getMeeting, updateMeeting, type Meeting } from "./store";
@@ -88,6 +89,7 @@ export const startFlow = (id: string) => startWriting(id, redrawFlow);
 // Sarvam when its key is set (best for Tamil mixed with English, and it labels speakers); otherwise Gemini's file model.
 async function transcribeAudio(path: string, mime: string, mode: TranscribeMode, onProgress: (note: string) => void) {
   if (sarvamEnabled()) {
+    await assertWithinLimit(path); // over the limit: stop here with a clear message, nothing is sent to Sarvam
     const text = await transcribeWithSarvam(path, { mode: mode === "verbatim" ? "verbatim" : "codemix", speakers: mode === "speakers" }, onProgress);
     return { text, by: SARVAM_NAME };
   }

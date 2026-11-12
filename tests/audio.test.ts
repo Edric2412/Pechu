@@ -1,6 +1,9 @@
 import { expect, test } from "bun:test";
-import { PART_SECONDS, RATE, chooseCuts, readWavPcm, wavBytes } from "../server/audio";
-import { friendlyError, isBusy, isDailyLimit, isRateLimit, withRetry } from "../server/gemini";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { AudioTooLongError, PART_SECONDS, RATE, assertWithinLimit, chooseCuts, cleanup, maxAudioMinutes, prepareParts, readWavPcm, wavBytes } from "../server/audio";
+import { friendlyError, isBusy, isDailyLimit, isRateLimit, transcribeFile, withRetry } from "../server/gemini";
 
 // A tone-filled signal with short silences at chosen seconds.
 function signal(seconds: number, quietAt: number[]): Int16Array {
@@ -80,4 +83,50 @@ test("a busy Gemini is retried", async () => {
   let calls = 0;
   expect(await withRetry(async () => { if (++calls < 3) throw busy; return "ok"; }, undefined, 6, 0)).toBe("ok");
   expect(calls).toBe(3);
+});
+
+// ----- the 2-hour limit -----
+test("the default longest recording is 2 hours", () => {
+  const prev = process.env.MAX_AUDIO_MINUTES;
+  delete process.env.MAX_AUDIO_MINUTES;
+  try { expect(maxAudioMinutes()).toBe(120); } finally { if (prev !== undefined) process.env.MAX_AUDIO_MINUTES = prev; }
+});
+
+// These run the real decoder (gst-launch-1.0), so they are skipped on a machine without GStreamer.
+const gst = !!Bun.which("gst-launch-1.0");
+async function wavFile(seconds: number) {
+  const dir = mkdtempSync(join(tmpdir(), "pechu-test-"));
+  const path = join(dir, "a.wav");
+  await Bun.write(path, wavBytes(signal(seconds, [])));
+  return { dir, path };
+}
+async function withLimit(minutes: string, run: () => Promise<void>) {
+  const prev = process.env.MAX_AUDIO_MINUTES;
+  process.env.MAX_AUDIO_MINUTES = minutes;
+  try { await run(); } finally { if (prev === undefined) delete process.env.MAX_AUDIO_MINUTES; else process.env.MAX_AUDIO_MINUTES = prev; }
+}
+
+test.skipIf(!gst)("a recording over the limit is refused with a clear message, never sent on whole", async () => {
+  const { dir, path } = await wavFile(75);
+  try {
+    await withLimit("1", async () => {
+      await expect(assertWithinLimit(path)).rejects.toBeInstanceOf(AudioTooLongError);
+      await expect(prepareParts(path)).rejects.toBeInstanceOf(AudioTooLongError);
+      // Gemini path: it must stop here and not upload the original file
+      await expect(transcribeFile(path, "audio/wav", "smart")).rejects.toThrow(/longer than 1 minute/);
+      try { await assertWithinLimit(path); } catch (e) { expect(friendlyError(e)).toContain("Split it into shorter recordings"); }
+    });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test.skipIf(!gst)("a recording within the limit is accepted", async () => {
+  const { dir, path } = await wavFile(30);
+  try {
+    await withLimit("1", async () => {
+      await assertWithinLimit(path);
+      const parts = await prepareParts(path);
+      expect(parts).not.toBeNull();
+      cleanup(parts!);
+    });
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

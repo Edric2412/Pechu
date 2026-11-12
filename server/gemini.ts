@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PART_SECONDS, SPEAKER_PART_SECONDS, cleanup, prepareParts } from "./audio";
 import { getKey, maskKey } from "./env";
+import { UserError } from "./errors";
 import { DRAFTS_NOTE, FLOW_PROMPT, NOTES_PROMPT, PART_PROMPT, TRANSLATE_PROMPT } from "./prompts";
 import { chunkText, extractWords, turnsFromWords } from "./text";
 import type { FlowNode, Item, Notes, Process, ProcStep } from "./store";
@@ -8,8 +9,7 @@ import type { FlowNode, Item, Notes, Process, ProcStep } from "./store";
 const API = "https://generativelanguage.googleapis.com/v1beta";
 const KINDS = ["root", "topic", "point", "decision", "action"];
 
-// An error whose message is already written for the user.
-export class UserError extends Error {}
+export { UserError };
 
 const client = () => new GoogleGenAI({ apiKey: getKey(), httpOptions: { apiVersion: "v1beta" } });
 

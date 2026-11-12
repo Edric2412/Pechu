@@ -105,6 +105,16 @@ test("an over-long transcript is refused", async () => {
   expect(r.status).toBe(413);
 });
 
+test("an audio upload over 100 MB is refused and a small one is accepted", async () => {
+  const cookie = await sharedCookie();
+  const m = (await (await fetch(`${base}/api/meetings`, { method: "POST", headers: { ...JSON_HEADERS, cookie }, body: JSON.stringify({ transcript: "hello" }) })).json()) as { id: string };
+  const put = (bytes: number) => fetch(`${base}/api/meetings/${m.id}/audio`, { method: "PUT", headers: { "content-type": "audio/webm", cookie }, body: new Uint8Array(bytes) });
+  const big = await put(100_000_001);
+  expect(big.status).toBe(413);
+  expect(((await big.json()) as { error: string }).error).toContain("100 MB");
+  expect((await put(1000)).status).toBe(200);
+});
+
 // last on purpose: it uses up the login attempts for this minute
 test("too many wrong passwords are throttled", async () => {
   let last = 0;

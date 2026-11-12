@@ -11,7 +11,7 @@ Pechu is built for people who speak Tamil mixed with English, and works for Engl
 ## What it does
 
 - **Record in the browser.** Use the microphone, the sound your computer plays (so the other people on a Zoom, Meet or Teams call are recorded too), or both. Live captions appear while you talk.
-- **Or upload a file.** mp3, m4a, wav, ogg, opus, webm, aac, flac and mp4, up to 200 MB.
+- **Or upload a file.** mp3, m4a, wav, ogg, opus, webm, aac, flac and mp4, up to 100 MB and 2 hours.
 - **A transcript you can read and click.** Each turn has a speaker and a time. Click a time to jump the audio there. Rename speakers once and every line updates.
 - **Notes written for you.** A summary, sections, key points, decisions and action items with owners and due dates, plus an English version when the talk was in Tamil.
 - **A flow chart of the meeting.** Pick a step-by-step process view or a topic map. Export it as SVG or PNG.
@@ -86,7 +86,7 @@ The most useful ones. The full list is in [docs/OPERATIONS.md](docs/OPERATIONS.m
 | `PECHU_DATA_DIR` | `./data/meetings` | Where meetings are stored. |
 | `PECHU_PASSWORD`, `SESSION_SECRET` | none | Login, required if the server is reachable from other machines. |
 | `RETENTION_DAYS` | keep forever | Delete meetings older than this many days. |
-| `MAX_AUDIO_MINUTES` | `180` | Longest recording that is decoded. |
+| `MAX_AUDIO_MINUTES` | `120` | Longest recording that is transcribed (a longer one is refused with a message). |
 
 ## Your data and your keys
 
