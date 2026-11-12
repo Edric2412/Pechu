@@ -110,3 +110,4 @@ bun test      # 143 tests, about 2 seconds
 
 - One instance per data folder, no database, and no accounts: it is a personal tool.
 - A transcription or notes job that is running when the server restarts has to be started again.
+- If Sarvam cannot take a recording in one piece (for example a long one with constant background noise), Pechu cuts it into short parts and joins the results. Times stay correct, but speaker labels are not available for that recording.
