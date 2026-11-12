@@ -5,7 +5,7 @@ import { state } from '../store.js';
 import { refreshMeetings } from '../store.js';
 
 const ACCEPT = '.mp3,.m4a,.wav,.ogg,.oga,.opus,.webm,.aac,.flac,.mp4,audio/*';
-const MAX = 200 * 1024 * 1024;
+const MAX = 100 * 1000 * 1000; // 100 MB, the same limit the server applies
 
 export function uploadPage({ navigate }) {
   let file = null, mode = 'smart', speakers = true, busy = false;
@@ -31,7 +31,7 @@ export function uploadPage({ navigate }) {
         icon('upload', 22),
         h('div', { class: 'big' }, 'Drop an audio file here'),
         h('button', { class: 'btn', type: 'button', onclick: () => picker.click() }, 'Choose a file'),
-        h('p', { class: 'hint', id: 'u-help' }, 'MP3, M4A, WAV, OGG, WebM or FLAC, up to 200 MB.'));
+        h('p', { class: 'hint', id: 'u-help' }, 'MP3, M4A, WAV, OGG, WebM or FLAC, up to 100 MB and 2 hours.'));
     } else {
       drop.append(
         h('div', { class: 'filecard', style: { width: '100%', maxWidth: '460px', textAlign: 'left' } },
@@ -45,7 +45,7 @@ export function uploadPage({ navigate }) {
 
   function choose(f) {
     errBox.hidden = true;
-    if (f && f.size > MAX) { show('That file is larger than 200 MB. Trim it or export a smaller version.'); f = null; }
+    if (f && f.size > MAX) { show('That file is larger than 100 MB. Trim it or export a smaller version.'); f = null; }
     else if (f && !/^audio\//.test(f.type) && !/\.(mp3|m4a|wav|ogg|oga|opus|webm|aac|flac|mp4)$/i.test(f.name)) { show('That does not look like an audio file.'); f = null; }
     file = f; picker.value = '';
     paintDrop();

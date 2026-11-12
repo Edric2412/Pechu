@@ -17,7 +17,7 @@ Pechu runs as one Docker container with one volume (`/data`). Put a TLS reverse 
 | `TRUST_PROXY` | unset | Set `1` only behind your own reverse proxy: the client address (rate limits) is the LAST `X-Forwarded-For` entry, the one your proxy adds, and https comes from `X-Forwarded-Proto`. Your proxy must set or append these headers. Never set it when the port is reachable directly. |
 | `MAX_LIVE_SESSIONS` | `3` | Live-caption sessions allowed at once. |
 | `MAX_JOBS` | `3` | Transcription, notes and flow jobs running at once; others get a "busy, try again" answer. |
-| `MAX_AUDIO_MINUTES` | `180` | Longest recording that is decoded (decoded audio is 32 KB per second whatever the file size). |
+| `MAX_AUDIO_MINUTES` | `120` | Longest recording that is transcribed. A longer one is refused with a clear message (it is never sent to Gemini or Sarvam). Decoded audio is 32 KB per second whatever the file size. |
 | `RETENTION_DAYS` | unset | Meetings older than this are deleted automatically. Unset = keep forever. |
 | `STORAGE` | `local` | `r2` keeps a durable copy of every meeting and recording in a Cloudflare R2 bucket (needed on Cloudflare Containers, whose disk is temporary). |
 | `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | none | Required when `STORAGE=r2`; the app refuses to start without them. Keys are secrets. |

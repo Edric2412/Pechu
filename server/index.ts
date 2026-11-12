@@ -27,7 +27,7 @@ import {
 } from "./store";
 
 const PUBLIC = resolve(import.meta.dir, "..", "public");
-const MAX_BYTES = 200 * 1024 * 1024;
+const MAX_BYTES = 100 * 1000 * 1000; // 100 MB: the most Cloudflare lets through to the app on the free plan
 const MAX_TRANSCRIPT_CHARS = 2_000_000; // far more than any meeting; keeps one job from costing thousands of model calls
 const NO_STORE = { "Cache-Control": "no-store" };
 
@@ -138,7 +138,7 @@ async function postUpload(req: Request) {
   }
   const file = form.get("file");
   if (!(file instanceof File) || file.size === 0) throw new HttpError(400, "No audio file was received.");
-  if (file.size > MAX_BYTES) throw new HttpError(413, "That file is larger than 200 MB.");
+  if (file.size > MAX_BYTES) throw new HttpError(413, "That file is larger than 100 MB.");
   const ext = audioExt(file.type, file.name);
   if (!ext) throw new HttpError(415, "That does not look like an audio file.");
   const titleField = form.get("title");
@@ -164,6 +164,7 @@ async function putAudio(req: Request, id: string) {
   if (!ext) throw new HttpError(415, "Send audio with an audio Content-Type, for example audio/webm.");
   const bytes = await req.arrayBuffer();
   if (bytes.byteLength === 0) throw new HttpError(400, "The audio was empty.");
+  if (bytes.byteLength > MAX_BYTES) throw new HttpError(413, "That recording is larger than 100 MB.");
   if (!(await saveAudio(id, bytes, ext))) throw new HttpError(404, "Meeting not found.");
   return json({ ok: true });
 }

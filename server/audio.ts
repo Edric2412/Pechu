@@ -9,6 +9,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { UserError } from "./errors";
 
 export const RATE = 16000;
 export const PART_SECONDS = 10 * 60; // each part is about 10 minutes
@@ -82,7 +83,17 @@ export function wavBytes(pcm: Int16Array): Buffer {
 // an "audio" file that is really a playlist must not make the server request other addresses (SSRF).
 export const GST_ENV_RANK =
   "hlsdemux:0,hlsdemux2:0,dashdemux:0,dashdemux2:0,mssdemux:0,mssdemux2:0,souphttpsrc:0,curlhttpsrc:0,neonhttpsrc:0,rtspsrc:0,rtmpsrc:0,rtmp2src:0,srtsrc:0,udpsrc:0,tcpclientsrc:0";
-const MAX_DECODED_BYTES = () => (Number(process.env.MAX_AUDIO_MINUTES) > 0 ? Number(process.env.MAX_AUDIO_MINUTES) : 180) * 60 * RATE * 2;
+// The longest recording Pechu transcribes: 2 hours unless MAX_AUDIO_MINUTES says otherwise.
+export const maxAudioMinutes = () => (Number(process.env.MAX_AUDIO_MINUTES) > 0 ? Number(process.env.MAX_AUDIO_MINUTES) : 120);
+const MAX_DECODED_BYTES = () => maxAudioMinutes() * 60 * RATE * 2;
+
+// A recording over the limit. It is shown to the person as written, and the job stops: the original file is never sent on.
+export class AudioTooLongError extends UserError {
+  constructor() {
+    const n = maxAudioMinutes();
+    super(`That recording is longer than ${n} minute${n === 1 ? "" : "s"}, which is the most Pechu transcribes at a time. Split it into shorter recordings and upload each one.`);
+  }
+}
 
 async function gstConvert(src: string, dest: string): Promise<void> {
   // Each argument is passed separately (no shell). Paths here are the app's own: data/meetings/<id>/audio.<ext>.
@@ -101,13 +112,14 @@ async function gstConvert(src: string, dest: string): Promise<void> {
   const code = await proc.exited;
   clearTimeout(timeout);
   clearInterval(watch);
-  if (tooLong || (code === 0 && Bun.file(dest).size > MAX_DECODED_BYTES())) throw new Error(`That recording is longer than ${Math.round(MAX_DECODED_BYTES() / (60 * RATE * 2))} minutes.`);
+  if (tooLong || (code === 0 && Bun.file(dest).size > MAX_DECODED_BYTES())) throw new AudioTooLongError();
   if (code !== 0) throw new Error(`Audio conversion failed: ${(await new Response(proc.stderr).text()).slice(0, 200)}`);
 }
 
 export type Parts = { dir: string; files: string[]; seconds: number };
 
 // Converts `src` and splits it. Returns null when conversion is not possible (the caller then sends the original).
+// Throws AudioTooLongError when the recording is over the limit: that one is never sent on whole.
 // The caller must call cleanup(parts) when done.
 export async function prepareParts(src: string, partSeconds = PART_SECONDS): Promise<Parts | null> {
   if (!Bun.which("gst-launch-1.0")) return null;
@@ -129,8 +141,24 @@ export async function prepareParts(src: string, partSeconds = PART_SECONDS): Pro
     return { dir, files, seconds: pcm.length / RATE };
   } catch (e) {
     rmSync(dir, { recursive: true, force: true });
+    if (e instanceof AudioTooLongError) throw e;
     console.error("[audio] conversion skipped:", (e as Error).message);
     return null;
+  }
+}
+
+// For a recording that goes to a service as it is (Sarvam): throws AudioTooLongError when it is over the limit.
+// If the decoder is missing or cannot read the file, this does nothing and the caller carries on as before.
+export async function assertWithinLimit(src: string): Promise<void> {
+  if (!Bun.which("gst-launch-1.0")) return;
+  const dir = mkdtempSync(join(tmpdir(), "pechu-len-"));
+  try {
+    await gstConvert(src, join(dir, "length-check.wav"));
+  } catch (e) {
+    if (e instanceof AudioTooLongError) throw e;
+    console.error("[audio] length check skipped:", (e as Error).message);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 }
 
