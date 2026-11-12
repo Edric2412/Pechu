@@ -7,6 +7,7 @@ import { renderProcess, processToSvgString } from '../process-flow.js';
 import { summaryView, normalizeNotes, applyEdit, notesToMarkdown } from '../summary-view.js';
 import { transcriptBody, highlightAt, speakerList, renameSpeakerInText, parseTurns } from '../transcript-view.js';
 import { svgToPngBlob, downloadBlob, printNotes } from '../export.js';
+import { PER_MINUTE, PER_MINUTE_SPEAKERS, priceLabel } from '../sarvam-cost.js';
 
 const AUTO_TITLE = /^Meeting · /;
 const STAMP = /^\[(?:\d+:)?\d{1,2}:\d{2}\]\s+/gm;
@@ -36,7 +37,7 @@ export function meetingPage({ params, navigate }) {
       return;
     }
     if (destroyed) return;
-    const key = `${m.status}|${m.title}|${!!m.notes}|${m.transcript?.length}|${m.transcriptEnglish?.length}|${m.error || ''}|${m.transcriber || ''}|${m.refineError || ''}|${m.notes?.process ? 1 : 0}`;
+    const key = `${m.status}|${m.title}|${!!m.notes}|${m.transcript?.length}|${m.transcriptEnglish?.length}|${m.error || ''}|${m.transcriber || ''}|${m.refineError || ''}|${m.transcriptLive ? 1 : 0}|${m.notes?.process ? 1 : 0}`;
     if (key !== lastKey) { lastKey = key; paint(first); }
     else bannerText(); // only the progress note changed: update it in place, without redrawing the page
     clearTimeout(poll);
@@ -80,7 +81,7 @@ export function meetingPage({ params, navigate }) {
     };
     const confirmSpeakers = () => {
       actions.replaceChildren(
-        h('span', { class: 'muted', style: { alignSelf: 'center', maxWidth: '340px', textAlign: 'right' } }, 'Transcribe the recording again with speaker labels? This replaces the transcript and notes.'),
+        h('span', { class: 'muted', style: { alignSelf: 'center', maxWidth: '340px', textAlign: 'right' } }, `Transcribe the recording again with speaker labels? ${viaSarvam() ? `Sarvam charges ${priceLabel(m.durationSec, true)} for this. ` : ''}This replaces the transcript and notes.`),
         h('button', { class: 'btn sm primary', type: 'button', onclick: identifySpeakers }, 'Identify speakers'),
         h('button', { class: 'btn sm', type: 'button', onclick: showActions }, 'Cancel'));
     };
@@ -103,6 +104,8 @@ export function meetingPage({ params, navigate }) {
     try { m = await job(); lastKey = ''; await load(false); } catch (err) { problem(err); }
   }
   const identifySpeakers = () => run(() => api.transcribeAgain(id, true));
+  const improveTranscript = () => run(() => api.transcribeAgain(id, false));
+  const viaSarvam = () => state.status?.transcriber === 'sarvam'; // the paid transcriber is on
   const transcribeAgain = () => run(() => api.transcribeAgain(id));
   const rewrite = () => run(() => api.writeNotes(id));
 
@@ -193,6 +196,19 @@ export function meetingPage({ params, navigate }) {
       await load(false);
     } catch (err) { problem(err); }
   }
+  // A live recording is written up from its live captions. Listening to the saved audio again with Sarvam costs money, so it is
+  // never automatic: this card is where the person chooses it, with the price on each button.
+  function improveCard() {
+    if (m.source !== 'live' || !m.audio || m.transcriptLive || working() || !viaSarvam()) return null;
+    return h('div', { class: 'improve', role: 'region', 'aria-label': 'Improve this transcript' }, icon('wave'),
+      h('div', null,
+        h('strong', null, 'This transcript comes from the live captions. '),
+        'For a more accurate one, Sarvam can listen to the saved recording again. It only runs when you press a button and takes a few minutes.',
+        h('div', { class: 'acts' },
+          h('button', { class: 'btn sm primary', type: 'button', onclick: improveTranscript }, `Improve transcript · ${priceLabel(m.durationSec, false)}`),
+          h('button', { class: 'btn sm', type: 'button', onclick: identifySpeakers }, `Improve and identify speakers · ${priceLabel(m.durationSec, true)}`)),
+        h('p', { class: 'hint' }, `Sarvam charges ₹${PER_MINUTE.toFixed(2)} a minute, or ₹${PER_MINUTE_SPEAKERS.toFixed(2)} with speaker labels, before tax. The live captions stay under “Live captions”, and the notes are rewritten from the new transcript.`)));
+  }
   function transcriptView() {
     const hasEn = !!m.transcriptEnglish;
     const hasLive = !!m.transcriptLive;
@@ -214,7 +230,8 @@ export function meetingPage({ params, navigate }) {
     const names = turns?.names ?? [];
     return h('div', { class: 'grid' },
       h('section', { class: 'panel s9', 'aria-label': 'Transcript' },
-        m.refineError ? h('div', { class: 'notice', role: 'status', style: { marginBottom: '14px' } }, icon('alert'), `The live captions are shown because the second listen did not work: ${m.refineError}`) : null,
+        m.refineError ? h('div', { class: 'notice', role: 'status', style: { marginBottom: '14px' } }, icon('alert'), `The improved transcript could not be made, so the earlier one is shown: ${m.refineError}`) : null,
+        improveCard(),
         h('div', { class: 'panel-head' }, seg, h('span', { class: 'spacer' }), copyBtn, dl),
         content),
       h('section', { class: 'panel s3 sticky', 'aria-label': 'About this transcript' },

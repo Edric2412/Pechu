@@ -12,6 +12,7 @@ Pechu is built for people who speak Tamil mixed with English, and works for Engl
 
 - **Record in the browser.** Use the microphone, the sound your computer plays (so the other people on a Zoom, Meet or Teams call are recorded too), or both. Live captions appear while you talk.
 - **Or upload a file.** mp3, m4a, wav, ogg, opus, webm, aac, flac and mp4, up to 100 MB and 2 hours.
+- **Improve a live transcript when you want to.** Live captions become the transcript. Press *Improve transcript* on the meeting and Sarvam listens to the saved recording again (about ₹0.49 a minute, ₹0.59 with speaker labels, before tax). The price is on the button, and nothing paid runs by itself.
 - **A transcript you can read and click.** Each turn has a speaker and a time. Click a time to jump the audio there. Rename speakers once and every line updates.
 - **Notes written for you.** A summary, sections, key points, decisions and action items with owners and due dates, plus an English version when the talk was in Tamil.
 - **A flow chart of the meeting.** Pick a step-by-step process view or a topic map. Export it as SVG or PNG.
@@ -60,7 +61,7 @@ bun run start            # then open http://localhost:4317
 ```
 
 - `GEMINI_API_KEY` writes the notes and flow chart. Get one in [Google AI Studio](https://aistudio.google.com/). Without it the app sends you to the key page. You can also paste the key there instead of editing `.env`.
-- `SARVAM_API_KEY` is optional. With it, Sarvam writes the transcript and re-listens to every live recording, which works best for Tamil mixed with English.
+- `SARVAM_API_KEY` is optional. With it, Sarvam writes the transcript of uploads and the live captions, which works best for Tamil mixed with English. Sarvam charges per minute of audio, so a live recording is only listened to again when you press **Improve transcript** on the meeting.
 
 `bun run dev` restarts the server when you edit a file.
 

@@ -41,31 +41,14 @@ async function redrawFlow(id: string) {
   updateMeeting(id, { notes, status: "ready", error: undefined, progress: undefined });
 }
 
-// After a live call, listen to the saved recording again with the better transcriber, then write the notes from that.
-// If that fails, the live captions are kept and the notes are written from them.
-async function refineThenNotes(id: string) {
-  const m = getMeeting(id);
-  const path = m ? await ensureAudio(m) : null;
-  if (m && path && m.audio) {
-    try {
-      const { text, by } = await transcribeAudio(path, m.audio.mime, "speakers", (progress) => updateMeeting(id, { progress }));
-      updateMeeting(id, { transcriptLive: m.transcript, transcript: text, transcriber: by, refineError: undefined });
-    } catch (e) {
-      console.error(`[job ${id}] second pass skipped:`, describeError(e));
-      updateMeeting(id, { refineError: friendlyError(e) });
-    }
-  }
-  updateMeeting(id, { status: "writing-notes", progress: undefined });
-  await writeNotes(id);
-}
-
 export function startNotes(id: string): Meeting | null {
   const m = getMeeting(id);
   if (!m || running.has(id)) return m;
   running.add(id);
-  const refine = m.source === "live" && !!m.audio && sarvamEnabled() && !m.transcriptLive;
-  const current = updateMeeting(id, { status: refine ? "transcribing" : "writing-notes", error: undefined, progress: undefined });
-  (refine ? refineThenNotes(id) : writeNotes(id))
+  // A live recording is written up from its live captions. Listening to the saved audio again (Sarvam, which costs money)
+  // only happens when the person asks for it: see retranscribe().
+  const current = updateMeeting(id, { status: "writing-notes", error: undefined, progress: undefined });
+  writeNotes(id)
     .catch((e) => fail(id, e))
     .finally(() => running.delete(id));
   return current;
@@ -100,10 +83,21 @@ async function transcribeThenNotes(id: string, mode: TranscribeMode) {
   const m = getMeeting(id);
   const path = m ? await ensureAudio(m) : null;
   if (!m || !path || !m.audio) return;
-  const { text, by } = await transcribeAudio(path, m.audio.mime, mode, (progress) => updateMeeting(id, { progress }));
+  let result: { text: string; by: string };
+  try {
+    result = await transcribeAudio(path, m.audio.mime, mode, (progress) => updateMeeting(id, { progress }));
+  } catch (e) {
+    if (!m.transcript.trim()) throw e; // nothing to fall back on: the meeting shows the error
+    // The meeting already has a transcript (and maybe notes): keep them, and tell the person why the new one was not made.
+    console.error(`[job ${id}] new transcript failed:`, describeError(e));
+    updateMeeting(id, { status: "ready", error: undefined, progress: undefined, refineError: friendlyError(e) });
+    return;
+  }
+  const { text, by } = result;
   // a live recording keeps its live captions so they can still be read next to the new transcript
   const keepLive = m.source === "live" && !m.transcriptLive && m.transcript ? { transcriptLive: m.transcript } : {};
-  updateMeeting(id, { ...keepLive, transcript: text, transcriber: by, status: "writing-notes", progress: undefined, refineError: undefined });
+  // the old notes and English version describe the old transcript, so they go now that it is replaced
+  updateMeeting(id, { ...keepLive, transcript: text, transcriber: by, notes: undefined, transcriptEnglish: undefined, status: "writing-notes", progress: undefined, refineError: undefined });
   await writeNotes(id);
 }
 
@@ -120,9 +114,8 @@ export function startUpload(id: string, mode: TranscribeMode): void {
 export function retranscribe(id: string, mode: TranscribeMode = "smart"): Meeting | null {
   const m = getMeeting(id);
   if (!m || !m.audio || running.has(id)) return m;
-  const current = updateMeeting(id, {
-    status: "transcribing", error: undefined, progress: undefined, notes: undefined, transcriptEnglish: undefined,
-  });
+  // the transcript, the notes and the English version stay until a new transcript is ready to replace them
+  const current = updateMeeting(id, { status: "transcribing", error: undefined, progress: undefined, refineError: undefined });
   startUpload(id, mode);
   return current;
 }
