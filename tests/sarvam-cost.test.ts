@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { PER_MINUTE, PER_MINUTE_SPEAKERS, improveLines, priceLabel } from "../public/js/sarvam-cost.js";
+import { PER_MINUTE, PER_MINUTE_SPEAKERS, canImprove, improveLines, isLiveCaptions, priceLabel } from "../public/js/sarvam-cost.js";
 
 test("the rates are the published Sarvam prices", () => {
   expect(PER_MINUTE).toBe(0.49);
@@ -40,4 +40,34 @@ test("captions from another service do not claim a doubled cost, and an unknown 
   const unknown = improveLines({ transcriber: "Sarvam Saaras v4", durationSec: null }).join(" ");
   expect(unknown).not.toContain("about ₹");
   expect(unknown).toContain("Credits Left");
+});
+
+test("a recording Sarvam already transcribed says running it again costs about the same again", () => {
+  const text = improveLines({ transcriber: "Sarvam Saaras v4", durationSec: 3000, fromLive: false }).join(" ");
+  expect(text).toContain("costs about the same again");
+  expect(text).not.toContain("doubles");
+});
+
+// the meeting shapes in a real library: a fresh live recording, a live one Sarvam already re-listened to, an upload, a failed-notes upload
+const live = { source: "live", audio: { file: "audio.webm" }, transcript: "[00:01] hi", status: "ready" };
+const improvedLive = { ...live, transcriptLive: "[00:01] hi (live)" };
+const upload = { source: "upload", audio: { file: "audio.aac" }, transcript: "[00:01] hello", status: "ready" };
+const notesFailed = { ...upload, status: "error" };
+
+test("every meeting with a saved recording and a transcript can be improved once Sarvam is on", () => {
+  for (const m of [live, improvedLive, upload, notesFailed]) expect(canImprove(m, true)).toBe(true);
+});
+
+test("the option stays away when it cannot work", () => {
+  expect(canImprove(live, false)).toBe(false); // Sarvam is not set up
+  expect(canImprove({ ...live, audio: undefined }, true)).toBe(false); // no saved recording
+  expect(canImprove({ ...live, transcript: "  " }, true)).toBe(false); // nothing to improve yet
+  expect(canImprove({ ...live, status: "transcribing" }, true)).toBe(false); // a job is running
+  expect(canImprove({ ...live, status: "writing-notes" }, true)).toBe(false);
+});
+
+test("only a live meeting Sarvam has not re-listened to is still on live captions", () => {
+  expect(isLiveCaptions(live)).toBe(true);
+  expect(isLiveCaptions(improvedLive)).toBe(false);
+  expect(isLiveCaptions(upload)).toBe(false);
 });

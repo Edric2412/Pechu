@@ -10,12 +10,20 @@ export function priceLabel(durationSec, speakers) {
   return `about ₹${Math.max(1, Math.ceil((durationSec / 60) * rate))}`;
 }
 
+// Which meetings get the "Improve with AI" prompt: any with a saved recording and a transcript, once Sarvam is switched on.
+// Not while a job is running, and not without a recording to listen to again.
+export const canImprove = (m, sarvamOn) => !!(sarvamOn && m?.audio && m?.transcript?.trim() && (m.status === 'ready' || m.status === 'error'));
+
+// A live meeting that Sarvam has not listened to yet: its transcript is still the live captions.
+export const isLiveCaptions = (m) => m?.source === 'live' && !m?.transcriptLive;
+
 // The few lines the "Improve with AI" pop-up shows. Sarvam has no way to read the balance through its API, so the person is
 // pointed at "Credits Left" on the Sarvam dashboard instead.
-export function improveLines({ transcriber, durationSec }) {
+export function improveLines({ transcriber, durationSec, fromLive = true }) {
   const lines = ['Sarvam will listen to the saved recording again for a more accurate transcript.'];
-  lines.push(/sarvam/i.test(transcriber || '')
-    ? 'The live captions already used Sarvam, so this roughly doubles the cost for this meeting.'
+  const sarvam = /sarvam/i.test(transcriber || '');
+  lines.push(fromLive && sarvam ? 'The live captions already used Sarvam, so this roughly doubles the cost for this meeting.'
+    : sarvam ? 'Sarvam already transcribed this recording, so this costs about the same again.'
     : 'This uses Sarvam credits.');
   const check = 'Pechu cannot see your Sarvam balance, so check “Credits Left” in your Sarvam dashboard first.';
   lines.push(durationSec > 0 ? `It needs ${priceLabel(durationSec, false)} in credits. ${check}` : check);

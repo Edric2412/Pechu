@@ -7,7 +7,7 @@ import { renderProcess, processToSvgString } from '../process-flow.js';
 import { summaryView, normalizeNotes, applyEdit, notesToMarkdown } from '../summary-view.js';
 import { transcriptBody, highlightAt, speakerList, renameSpeakerInText, parseTurns } from '../transcript-view.js';
 import { svgToPngBlob, downloadBlob, printNotes } from '../export.js';
-import { improveLines } from '../sarvam-cost.js';
+import { canImprove, improveLines, isLiveCaptions } from '../sarvam-cost.js';
 
 const AUTO_TITLE = /^Meeting · /;
 const STAMP = /^\[(?:\d+:)?\d{1,2}:\d{2}\]\s+/gm;
@@ -107,7 +107,7 @@ export function meetingPage({ params, navigate }) {
   const improveTranscript = () => run(() => api.transcribeAgain(id, false));
   // The button only asks; the pop-up says what it costs and the run starts only after the person confirms.
   const askImprove = async () => {
-    const yes = await confirmDialog({ title: 'Improve this transcript with AI?', lines: improveLines({ transcriber: m.transcriber, durationSec: m.durationSec }), confirmLabel: 'Improve' });
+    const yes = await confirmDialog({ title: 'Improve this transcript with AI?', lines: improveLines({ transcriber: m.transcriber, durationSec: m.durationSec, fromLive: isLiveCaptions(m) }), confirmLabel: 'Improve' });
     if (yes) improveTranscript();
   };
   const viaSarvam = () => state.status?.transcriber === 'sarvam'; // the paid transcriber is on
@@ -184,7 +184,8 @@ export function meetingPage({ params, navigate }) {
         canRetry ? h('button', { class: 'btn sm', type: 'button', onclick: rewrite }, icon('refresh'), 'Try again')
           : m.source === 'upload' && m.audio ? h('button', { class: 'btn sm', type: 'button', onclick: transcribeAgain }, icon('refresh'), 'Try again')
           : h('a', { class: 'btn sm', href: '#/upload' }, 'Upload again')),
-      canRetry ? h('div', { style: { marginTop: '20px' } }, transcriptBody(m.transcript, { onSeek: audioEl ? seek : undefined })) : null);
+      canRetry ? h('div', { style: { marginTop: '16px' } }, improveCard()) : null,
+      canRetry ? h('div', { style: { marginTop: '4px' } }, transcriptBody(m.transcript, { onSeek: audioEl ? seek : undefined })) : null);
   }
 
   // ---------- transcript ----------
@@ -201,12 +202,14 @@ export function meetingPage({ params, navigate }) {
       await load(false);
     } catch (err) { problem(err); }
   }
-  // A live recording is written up from its live captions. Running Sarvam on the saved audio costs credits, so it is never
-  // automatic: this is the one short prompt for it, and the details are in the pop-up after pressing the button.
+  // Running Sarvam on the saved audio costs credits, so it is never automatic: this is the one short prompt for it, on any meeting
+  // with a recording and a transcript. The details are in the pop-up after pressing the button.
   function improveCard() {
-    if (m.source !== 'live' || !m.audio || m.transcriptLive || working() || !viaSarvam()) return null;
+    if (!canImprove(m, viaSarvam()) || working()) return null;
     return h('div', { class: 'improve', role: 'region', 'aria-label': 'Improve this transcript' }, icon('wave'),
-      h('div', { class: 'txt' }, h('strong', null, 'Made from live captions. '), 'Run it through Sarvam again for a more accurate transcript.'),
+      isLiveCaptions(m)
+        ? h('div', { class: 'txt' }, h('strong', null, 'Made from live captions. '), 'Run it through Sarvam again for a more accurate transcript.')
+        : h('div', { class: 'txt' }, h('strong', null, 'Want a more accurate transcript? '), 'Run it through Sarvam again.'),
       h('button', { class: 'btn sm primary', type: 'button', onclick: askImprove }, 'Improve with AI'));
   }
   function transcriptView() {
