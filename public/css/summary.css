@@ -1,0 +1,62 @@
+/* Summary tab (public/js/summary-view.js). Tokens only, so light and dark both work. */
+
+.sv { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+.sv-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); align-items: stretch; }
+.sv-card { min-width: 0; }
+.sv-card .empty { margin: 0; }
+
+/* ---------- text ---------- */
+.sv-lead { font-size: 18px; line-height: 29px; max-width: 68ch; overflow-wrap: anywhere; }
+.sv-h { font-size: 15px; line-height: 22px; font-weight: 600; margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.sv-text[lang="ta"] { line-height: 1.7; }
+.sv-lead[lang="ta"] { line-height: 1.75; }
+
+/* ---------- lists ---------- */
+.sv-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.sv-list:empty { display: none; }
+.sv-item { display: flex; align-items: flex-start; gap: 10px; font-size: 15px; line-height: 22px; min-width: 0; }
+.sv-item::before { content: ""; flex: none; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); margin-top: 9px; }
+.sv-decision::before { background: var(--accent); }
+.sv-grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sv-side { flex: none; display: inline-flex; align-items: center; gap: 4px; min-height: 22px; }
+.sv-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.sv-grow > .sv-chip { margin-top: 4px; }
+
+/* ---------- chips ---------- */
+.sv-chip { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; min-height: 22px; padding: 0 10px; border-radius: 999px; background: var(--well); color: var(--chip-ink); font-size: 12px; line-height: 16px; font-weight: 500; box-shadow: inset 0 1px 2px rgb(var(--shadow-rgb) / 0.14); }
+.sv-chip-k { color: var(--muted); font-weight: 400; }
+.sv-chip .sv-text { min-width: 0; overflow-wrap: anywhere; }
+.sv-who, .sv-owner { background: var(--accent-pale); color: var(--accent); }
+.sv-who .sv-chip-k, .sv-owner .sv-chip-k { color: inherit; opacity: 0.75; }
+.sv-chip.is-empty { background: transparent; box-shadow: none; border: 1px dashed var(--control); color: var(--muted); }
+
+.sv-at { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border: 0; border-radius: 999px; background: var(--raised); color: var(--muted); font: 500 12px/16px var(--font); font-variant-numeric: tabular-nums; box-shadow: var(--shadow-raised); }
+button.sv-at { cursor: pointer; transition: box-shadow 0.2s var(--ease), color 0.2s var(--ease), transform 0.15s var(--ease); }
+button.sv-at:hover { color: var(--text); box-shadow: var(--shadow-raised-hover); transform: translateY(-1px); }
+button.sv-at:active { box-shadow: var(--shadow-press); transform: translateY(1px); }
+.sv-at:focus-visible, .sv-add:focus-visible, .sv-remove:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- editing ---------- */
+.sv-editing .sv-text[contenteditable] { display: block; border-radius: 8px; padding: 2px 6px; margin: -2px -6px; cursor: text; transition: background-color 0.2s var(--ease), box-shadow 0.2s var(--ease); }
+.sv-editing .sv-chip .sv-text[contenteditable] { display: inline-block; padding: 0 2px; margin: 0 -2px; min-width: 2ch; }
+.sv-editing .sv-text[contenteditable]:hover { background: var(--well); box-shadow: var(--shadow-well); }
+.sv-editing .sv-text[contenteditable]:focus { outline: 2px solid var(--accent); outline-offset: 1px; background: var(--field); box-shadow: var(--shadow-well); }
+.sv-text[contenteditable]:empty::before { content: attr(data-placeholder); color: var(--faint); pointer-events: none; }
+.sv-editing .sv-h[contenteditable] { display: block; flex: 1; }
+
+.sv-remove { display: inline-grid; place-items: center; width: 24px; height: 24px; border: 0; border-radius: 50%; background: transparent; color: var(--muted); opacity: 0; transition: opacity 0.2s var(--ease), background-color 0.2s var(--ease), color 0.2s var(--ease); }
+.sv-item:hover .sv-remove, .sv-item:focus-within .sv-remove { opacity: 1; }
+.sv-remove:hover { background: var(--pill-negative-bg); color: var(--negative); }
+@media (hover: none) { .sv-remove { opacity: 1; } }
+
+.sv-add { display: inline-flex; align-items: center; height: 28px; margin-top: 12px; padding: 0 12px; border: 1px dashed var(--control); border-radius: 999px; background: transparent; color: var(--muted); font-size: 13px; transition: background-color 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease); }
+.sv-add:hover { background: var(--wash); color: var(--text); border-color: var(--line-strong); }
+
+@media (max-width: 900px) {
+  .sv-row { grid-template-columns: minmax(0, 1fr); }
+  .sv-lead { font-size: 17px; line-height: 27px; }
+}
+@media (max-width: 600px) {
+  .sv-add { min-height: 40px; }
+  .sv-remove { width: 32px; height: 32px; }
+}

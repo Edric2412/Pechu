@@ -1,0 +1,125 @@
+/* Recorder: stage, status pill, wave well, timer, the record control. */
+
+/* Record controls: a coral record circle; while recording, a pause button and a stop square. */
+:root { --rec-top: #cf8a7b; --rec-bottom: #b06a5d; --rec-mark: #fff; }
+:root[data-theme="dark"] { --rec-top: #efb5a2; --rec-bottom: #d98f79; --rec-mark: #3a231d; }
+
+/* ---------- stage ---------- */
+.stage { padding: 22px 24px 28px; display: flex; flex-direction: column; align-items: center; }
+.stage-top { align-self: stretch; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 26px; margin-bottom: 14px; }
+
+/* status pill: neutral glass with a coral outline; recording and reconnecting fill with coral */
+.stage .pill {
+  height: 26px; padding: 0 13px; background: var(--raised); color: var(--coral-ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--coral) 70%, transparent), inset 0 1px 0 var(--glass-hi);
+  transition: background-color 0.4s var(--ease), color 0.4s var(--ease), box-shadow 0.4s var(--ease);
+}
+.stage .pill.live, .stage .pill.warn, .stage .pill.paused { background: var(--coral-pale); color: var(--coral-ink); box-shadow: inset 0 0 0 1px var(--coral); }
+.stage .pill .dot { background: var(--coral); }
+.stage .pill.live .dot { animation: rec-dot 1.6s var(--ease) infinite; }
+.stage .pill.warn .dot { animation: rec-dot 0.9s var(--ease) infinite; }
+.stage .pill.paused .dot { background: var(--muted); }
+@keyframes rec-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+
+.provider { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; line-height: 16px; min-width: 0; }
+.provider-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; background: var(--positive); box-shadow: 0 0 0 3px color-mix(in srgb, var(--positive) 22%, transparent); }
+
+/* wave display: a sunken well with a soft inner border */
+.wave-wrap {
+  position: relative; width: 100%; height: 176px; overflow: hidden; border-radius: 22px;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 52%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 75%),
+    color-mix(in srgb, var(--well) 55%, var(--raised));
+  box-shadow: var(--shadow-well);
+  border: 1px solid color-mix(in srgb, var(--glass-border) 70%, transparent);
+}
+.wave-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.timer { margin-top: 18px; font-size: 36px; line-height: 42px; font-weight: 400; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; color: var(--muted); transition: color 0.5s var(--ease); }
+.timer.on { color: var(--text); }
+.timer.paused { animation: rec-blink 1.8s ease-in-out infinite; }
+@keyframes rec-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* ---------- record controls ---------- */
+.rec-wrap { --lvl: 0; margin-top: 24px; display: flex; justify-content: center; align-items: flex-start; gap: 32px; width: 100%; min-height: 108px; }
+.rec-item { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.rec-cap { font-size: 13px; line-height: 18px; font-weight: 500; color: var(--muted); text-align: center; }
+.rec-start .rec-cap { color: var(--text); font-size: 15px; line-height: 20px; }
+.rec-live { display: none; }
+.rec-wrap.on .rec-start { display: none; }
+.rec-wrap.on .rec-live { display: flex; animation: rec-in 0.45s var(--ease-out) both; }
+.rec-wrap.on .rec-live:nth-child(3) { animation-delay: 0.06s; }
+@keyframes rec-in { from { opacity: 0; transform: scale(0.82); } to { opacity: 1; transform: none; } }
+
+/* the record circle: coral, soft inner highlight, white record mark, a slow halo */
+.rec-btn {
+  position: relative; width: 80px; height: 80px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; cursor: pointer;
+  background: linear-gradient(180deg, var(--rec-top), var(--rec-bottom));
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.45), inset 0 -4px 8px rgba(0, 0, 0, 0.16),
+    0 0 0 6px color-mix(in srgb, var(--coral) 20%, transparent),
+    0 14px 26px -10px color-mix(in srgb, var(--coral) 85%, transparent);
+  transition: transform 0.3s var(--ease), box-shadow 0.4s var(--ease), opacity 0.3s var(--ease);
+  animation: rec-halo 4.5s ease-in-out infinite;
+}
+.rec-btn i { display: block; width: 26px; height: 26px; border-radius: 50%; background: var(--rec-mark); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); }
+.rec-btn:hover { transform: translateY(-1px) scale(1.03); }
+.rec-btn:active { transform: scale(0.96); box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.3), 0 0 0 6px color-mix(in srgb, var(--coral) 26%, transparent); animation: none; }
+.rec-btn:focus-visible, .rec-pause:focus-visible, .rec-stop:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
+@keyframes rec-halo {
+  0%, 100% { box-shadow: inset 0 1.5px 0 rgba(255,255,255,.45), inset 0 -4px 8px rgba(0,0,0,.16), 0 0 0 6px color-mix(in srgb, var(--coral) 20%, transparent), 0 14px 26px -10px color-mix(in srgb, var(--coral) 85%, transparent); }
+  50% { box-shadow: inset 0 1.5px 0 rgba(255,255,255,.45), inset 0 -4px 8px rgba(0,0,0,.16), 0 0 0 11px color-mix(in srgb, var(--coral) 9%, transparent), 0 14px 26px -10px color-mix(in srgb, var(--coral) 85%, transparent); }
+}
+
+/* pause: a glass circle with two bars; while paused it turns coral and shows a play triangle */
+.rec-pause {
+  position: relative; width: 68px; height: 68px; border-radius: 50%; padding: 0; display: grid; place-items: center; cursor: pointer;
+  color: var(--text); background: var(--raised); border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 var(--glass-hi), 0 10px 20px -10px rgb(var(--shadow-rgb) / 0.4), 0 2px 5px rgb(var(--shadow-rgb) / 0.12);
+  transition: transform 0.3s var(--ease), background-color 0.35s var(--ease), box-shadow 0.35s var(--ease), color 0.35s var(--ease);
+}
+.rec-pause i { display: block; width: 20px; height: 22px; background: currentColor; clip-path: polygon(0 0, 7px 0, 7px 100%, 0 100%, 0 0, 13px 0, 20px 0, 20px 100%, 13px 100%, 13px 0); border-radius: 2px; transition: clip-path 0.35s var(--ease); }
+.rec-pause:hover { transform: translateY(-1px); }
+.rec-pause:active { transform: scale(0.96); }
+.rec-pause[disabled] { opacity: 0.5; cursor: not-allowed; transform: none; }
+.rec-wrap.paused .rec-pause { color: var(--rec-mark); background: linear-gradient(180deg, var(--rec-top), var(--rec-bottom)); border-color: transparent; box-shadow: inset 0 1.5px 0 rgba(255,255,255,.4), 0 10px 20px -10px color-mix(in srgb, var(--coral) 85%, transparent); }
+.rec-wrap.paused .rec-pause i { clip-path: polygon(14% 0, 100% 50%, 14% 100%, 14% 0, 14% 0, 14% 0, 14% 0, 14% 0, 14% 0, 14% 0); }
+
+/* stop: a rounded square, the strong action; its glow follows the voice */
+.rec-stop {
+  position: relative; width: 68px; height: 68px; border-radius: 14px; border: 0; padding: 0; display: grid; place-items: center; cursor: pointer;
+  background: linear-gradient(180deg, var(--rec-top), var(--rec-bottom));
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,.4), inset 0 -3px 6px rgba(0,0,0,.14),
+    0 0 calc(10px + var(--lvl) * 24px) calc(var(--lvl) * 3px) color-mix(in srgb, var(--coral) calc(25% + var(--lvl) * 45%), transparent),
+    0 10px 20px -10px color-mix(in srgb, var(--coral) 85%, transparent);
+  transition: transform 0.3s var(--ease);
+}
+.rec-stop i { display: block; width: 22px; height: 22px; border-radius: 3px; background: var(--rec-mark); }
+.rec-stop:hover { transform: translateY(-1px); }
+.rec-stop:active { transform: scale(0.96); }
+.rec-wrap.paused .rec-stop { box-shadow: inset 0 1.5px 0 rgba(255,255,255,.4), inset 0 -3px 6px rgba(0,0,0,.14), 0 10px 20px -10px color-mix(in srgb, var(--coral) 85%, transparent); }
+
+/* starting / saving: the record circle dims and its mark breathes. disabled: muted */
+.rec-wrap.busy .rec-btn { opacity: 0.75; cursor: progress; animation: none; }
+.rec-wrap.busy .rec-btn i { animation: rec-breathe 1.6s ease-in-out infinite; }
+@keyframes rec-breathe { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.7); opacity: 0.55; } }
+.rec-btn[disabled] { cursor: not-allowed; transform: none; }
+.rec-wrap:not(.busy) .rec-btn[disabled] { opacity: 0.45; filter: saturate(0.4); animation: none; }
+
+.stage .notice { align-self: stretch; margin-top: 18px; }
+.stage-hint { color: var(--muted); font-size: 13px; margin-top: 6px; text-align: center; }
+
+@media (max-width: 900px) {
+  .wave-wrap { height: 168px; }
+}
+@media (max-width: 600px) {
+  .stage { padding: 18px 16px 24px; }
+  .wave-wrap { height: 128px; border-radius: 18px; }
+  .timer { font-size: 32px; line-height: 38px; margin-top: 14px; }
+  .rec-wrap { margin-top: 20px; gap: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rec-btn, .rec-pause, .rec-stop, .rec-pause i { transition: none !important; }
+  .rec-btn, .rec-btn i, .rec-wrap.on .rec-live, .timer.paused { animation: none !important; }
+}
+

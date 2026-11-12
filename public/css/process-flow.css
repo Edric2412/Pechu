@@ -1,0 +1,36 @@
+/* Process flow chart (public/js/process-flow.js). Colours come only from the app tokens, so it follows the theme. */
+.pf-svg { display: block; }
+.pf-svg text { font-family: var(--font); text-anchor: middle; }
+
+.pf-node { filter: drop-shadow(0 1px 1.5px rgb(var(--shadow-rgb) / 0.22)) drop-shadow(0 5px 6px rgb(var(--shadow-rgb) / 0.12)); outline: none; }
+.pf-shape { stroke-width: 1.25; transition: stroke 0.2s var(--ease), fill 0.2s var(--ease); }
+.pf-text { font-size: 14px; font-weight: 500; fill: var(--text); }
+.pf-who { font-size: 12px; font-weight: 400; fill: var(--muted); }
+
+.pf-start .pf-shape { fill: var(--primary); stroke: var(--primary); }
+.pf-start .pf-text { fill: var(--on-primary); }
+.pf-start .pf-who { fill: var(--on-primary); opacity: 0.75; }
+.pf-step .pf-shape { fill: var(--raised); stroke: var(--border); }
+.pf-decision .pf-shape { fill: var(--accent-pale); stroke: var(--accent); }
+.pf-end .pf-shape { fill: var(--well); stroke: var(--control); }
+
+/* the time chip sits on the top edge of a node that can jump to the recording */
+.pf-chip rect { fill: var(--surface); stroke: var(--border); stroke-width: 1; }
+.pf-chip text { font-size: 11px; font-weight: 600; fill: var(--muted); font-variant-numeric: tabular-nums; }
+
+.pf-seek { cursor: pointer; }
+.pf-seek:hover .pf-shape { stroke: var(--accent); stroke-width: 2; }
+.pf-seek:hover .pf-chip text { fill: var(--accent); }
+.pf-seek:focus-visible .pf-shape { stroke: var(--accent); stroke-width: 3; }
+.pf-seek:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+.pf-edge { fill: none; stroke: var(--faint); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.pf-edge.pf-back { stroke: var(--accent); stroke-dasharray: 6 5; stroke-linecap: butt; }
+.pf-arrow { fill: var(--faint); }
+.pf-arrow.pf-arrow-back { fill: var(--accent); }
+
+.pf-elabel rect { fill: var(--raised); stroke: var(--border); stroke-width: 1; }
+.pf-elabel text { font-size: 12px; font-weight: 600; fill: var(--text); }
+.pf-elabel.pf-back text { fill: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) { .pf-shape { transition: none; } }

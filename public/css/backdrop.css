@@ -1,0 +1,71 @@
+/* Backdrop: fixed full-screen layer behind the app. Soft volumes only (no lines).
+   js/backdrop.js builds 3 blurred SVG ribbon layers; the only motion is a slow transform on each layer. */
+:root {
+  /* light: pale mint base, white/teal silk, faint coral rim */
+  --bd-base-top: #eef4f0;
+  --bd-base-mid: #e2eae5;
+  --bd-base-low: #d9e5df;
+  --bd-wash: rgba(40, 127, 117, 0.16);
+  --bd-vignette: rgba(120, 160, 148, 0.16);
+  --bd-crest: rgba(255, 255, 255, 0.85);
+  --bd-mid: rgba(214, 238, 232, 0.4);
+  --bd-deep: rgba(40, 127, 117, 0.28);
+  --bd-rim-k: 0.55;
+  --bd-veil: rgba(238, 244, 240, 0.22);
+  --bd-veil-top: rgba(226, 234, 229, 0);
+  --bd-sheen: rgba(255, 255, 255, 0.75);
+  --bd-rim: var(--coral);
+  --bd-grain-op: 0.05;
+}
+:root[data-theme="dark"] {
+  /* dark: deep green-black at the edges, teal depth, silk lit along the crest */
+  --bd-base-top: #19241f;
+  --bd-base-mid: #17201d;
+  --bd-base-low: #0f1815;
+  --bd-wash: rgba(69, 191, 175, 0.08);
+  --bd-vignette: rgba(3, 8, 6, 0.6);
+  --bd-crest: rgba(80, 168, 150, 0.52);
+  --bd-mid: rgba(26, 58, 51, 0.5);
+  --bd-deep: rgba(6, 12, 10, 0.75);
+  --bd-rim-k: 1;
+  --bd-veil: rgba(14, 22, 19, 0.7);
+  --bd-veil-top: rgba(14, 22, 19, 0.14);
+  --bd-sheen: rgba(69, 191, 175, 0.36);
+  --bd-rim: var(--coral);
+  --bd-grain-op: 0.07;
+}
+
+.backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; contain: strict;
+  background:
+    radial-gradient(ellipse 60% 55% at 92% 8%, var(--bd-wash), transparent 70%),
+    radial-gradient(ellipse 70% 60% at 62% 110%, var(--bd-wash), transparent 70%),
+    radial-gradient(ellipse 120% 100% at 55% 35%, transparent 45%, var(--bd-vignette) 110%),
+    linear-gradient(180deg, var(--bd-base-top) 0%, var(--bd-base-mid) 48%, var(--bd-base-low) 100%); }
+
+/* each layer is wider than the screen so a drift never shows an edge; transform-only animation */
+.bd-layer { position: absolute; top: -8%; right: -8%; width: 116%; height: 116%; transform-origin: 85% 15%; will-change: transform; }
+.bd-rimg { opacity: var(--bd-rim-k); }
+.bd-layer svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+.bd-a { animation: bd-drift-a 70s ease-in-out infinite alternate; }
+.bd-b { animation: bd-drift-b 90s ease-in-out infinite alternate; }
+.bd-c { animation: bd-drift-c 110s ease-in-out infinite alternate, bd-breathe 120s ease-in-out infinite alternate; }
+@keyframes bd-drift-a { to { transform: translate3d(-2.5%, 2%, 0) rotate(-1.2deg) scale(1.05); } }
+@keyframes bd-drift-b { to { transform: translate3d(2%, 3%, 0) rotate(1deg) scale(1.04); } }
+@keyframes bd-drift-c { to { transform: translate3d(-3%, -1.5%, 0) rotate(0.8deg) scale(1.06); } }
+@keyframes bd-breathe { from { opacity: 1; } to { opacity: 0.65; } }
+
+.bd-veil { position: absolute; inset: 0;
+  background: linear-gradient(180deg, var(--bd-veil-top) 0, var(--bd-veil-top) 7%, var(--bd-veil) 23%, var(--bd-veil) 100%); }
+.bd-grain { position: absolute; inset: 0; opacity: var(--bd-grain-op);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1.2 -0.1'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+/* phones: two layers, no extra glow strokes; the ribbons are anchored top right and scaled to fill */
+@media (max-width: 600px) {
+  .bd-c, .bd-fine { display: none; }
+  .bd-layer { top: -4%; right: -70%; width: 230%; height: 76%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bd-layer { animation: none !important; will-change: auto; }
+}

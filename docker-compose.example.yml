@@ -1,0 +1,28 @@
+# Copy to docker-compose.yml, create ".env.docker" next to it (chmod 600) with the
+# secrets listed in docs/OPERATIONS.md. Put a TLS reverse proxy in front of 127.0.0.1:4317.
+services:
+  pechu:
+    build: .
+    image: pechu:local          # for rollback, tag each release (e.g. pechu:2026-11-12) and point here
+    restart: unless-stopped
+    env_file: .env.docker
+    environment:
+      HOST: 0.0.0.0
+      PORT: "4317"
+      PECHU_DATA_DIR: /data/meetings
+      ENV_FILE: /data/.env
+      TRUST_PROXY: "1"          # only because the port is loopback-only and your reverse proxy sets X-Forwarded-For/-Proto
+    ports:
+      - "127.0.0.1:4317:4317"   # loopback only; the reverse proxy does TLS
+    volumes:
+      - pechu-data:/data
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:4317/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  pechu-data:

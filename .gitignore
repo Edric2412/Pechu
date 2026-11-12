@@ -1,0 +1,11 @@
+.env
+data/
+node_modules/
+
+# ops
+backups/
+.env.docker
+docker-compose.yml
+*.partial
+.playwright-cli/
+.taste-skill/

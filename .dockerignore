@@ -1,0 +1,15 @@
+.env
+.env.*
+data
+backups
+node_modules
+.git
+.github
+.playwright-cli
+.taste-skill
+tests
+docs
+scripts
+*.md
+Dockerfile
+docker-compose*.yml

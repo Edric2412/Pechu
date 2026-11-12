@@ -1,0 +1,9 @@
+{
+  "name": "pechu",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-09",
+  "account_id": "6dc3c771464cc474bfba0d86bfaae004",
+  "workers_dev": true,
+  // Created through the API on 2026-11-12; kept here so the Worker can be redeployed with wrangler.
+  "vpc_services": [{ "binding": "PECHU", "service_id": "01a1cfc0-9b5a-7a00-a401-4ed5cf89db9d" }]
+}

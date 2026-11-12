@@ -1,0 +1,52 @@
+/* Transcript reader (public/js/transcript-view.js). Tokens only; every class starts with tv-. */
+
+.tv-turns { display: flex; flex-direction: column; }
+/* one block per run of speech by the same person: name on the left, their lines on the right */
+.tv-turn { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 0 8px; padding: 10px 6px; border-top: 1px solid var(--line); }
+.tv-turn:first-child { border-top: 0; padding-top: 0; }
+.tv-side { display: flex; align-items: flex-start; gap: 9px; align-self: start; position: sticky; top: 16px; padding: 3px 0 0 6px; min-width: 0; }
+.tv-who { font-weight: 600; font-size: 13px; line-height: 26px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: hsl(var(--h, 200) 48% 30%); }
+:root[data-theme="dark"] .tv-who { color: hsl(var(--h, 200) 55% 78%); }
+.tv-lines { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.tv-line { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: baseline; padding: 3px 10px 3px 0; border-radius: 12px; transition: background-color 0.2s var(--ease), box-shadow 0.2s var(--ease); }
+.tv-line:hover { background: color-mix(in srgb, var(--accent-pale) 35%, transparent); }
+.tv-time { display: block; text-align: left; }
+.tv-untimed .tv-line { grid-template-columns: minmax(0, 1fr); }
+.tv-untimed .tv-time { display: none; }
+.tv-text { font-size: 15.5px; line-height: 26px; overflow-wrap: anywhere; }
+
+.tv-prose { display: flex; flex-direction: column; gap: 4px; font-size: 16px; line-height: 28px; max-width: calc(70ch + 24px); }
+.tv-para { padding: 6px 12px; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; transition: background-color 0.2s var(--ease), box-shadow 0.2s var(--ease); }
+.tv-empty { border: 1px dashed var(--control); border-radius: 14px; padding: 18px; color: var(--muted); text-align: center; }
+
+/* time chip: small, muted, turns accent on hover or focus */
+.tv-stamp { font: inherit; font-size: 12px; line-height: 20px; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; color: var(--muted); background: transparent; border: 0; border-radius: 999px; padding: 0 8px; margin-left: -2px; cursor: pointer; white-space: nowrap; transition: color 0.15s var(--ease), background-color 0.15s var(--ease); }
+.tv-para .tv-stamp { vertical-align: 1px; }
+.tv-stamp:hover, .tv-stamp:focus-visible { color: var(--accent); background: var(--accent-pale); }
+.tv-stamp:focus-visible, .tv-link:focus-visible, .tv-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* the turn that is playing: a calm wash and a bar on the left edge */
+.tv-current { background: color-mix(in srgb, var(--accent-pale) 55%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
+
+/* avatars: pale tint on light, deep tint on dark, hue set per speaker through --h */
+.tv-avatar { width: 28px; height: 28px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 12px; font-weight: 600; flex: none; background: hsl(var(--h, 200) 55% 91%); color: hsl(var(--h, 200) 50% 26%); }
+:root[data-theme="dark"] .tv-avatar { background: hsl(var(--h, 200) 30% 22%); color: hsl(var(--h, 200) 60% 80%); }
+
+/* "Who said what" */
+.tv-speakers { display: flex; flex-direction: column; gap: 8px; }
+.tv-speaker-row { display: flex; align-items: center; gap: 10px; min-height: 36px; }
+.tv-speaker-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tv-link { color: var(--muted); font: inherit; font-size: 13px; background: none; border: 0; padding: 0 2px; border-radius: 4px; cursor: pointer; }
+.tv-link:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+.tv-input { flex: 1; min-width: 0; height: 34px; padding: 0 14px; font: inherit; font-size: 14px; color: var(--text); background: var(--field); border: 1px solid var(--line-strong); border-radius: 999px; box-shadow: var(--shadow-well); }
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-line, .tv-para, .tv-stamp { transition: none; }
+}
+
+/* phones: name above the lines */
+@media (max-width: 640px) {
+  .tv-turn { grid-template-columns: minmax(0, 1fr); padding: 10px 0; }
+  .tv-side { position: static; padding: 0 0 4px 6px; }
+  .tv-line { grid-template-columns: 46px minmax(0, 1fr); padding-right: 4px; }
+}

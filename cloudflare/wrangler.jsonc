@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "pechu",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-09",
+  "account_id": "6dc3c771464cc474bfba0d86bfaae004",
+  "workers_dev": true,
+  "observability": { "enabled": true },
+
+  // The Bun app, built from the Dockerfile at the repo root (one level up).
+  "containers": [
+    {
+      "class_name": "PechuContainer",
+      "image": "../Dockerfile",
+      "image_build_context": "..",
+      // "basic" = 1/4 vCPU, 1 GiB RAM, 4 GB disk. "lite" (256 MiB) is too small for Bun + GStreamer.
+      "instance_type": "basic",
+      "max_instances": 1
+    }
+  ],
+
+  "durable_objects": {
+    "bindings": [{ "name": "PECHU", "class_name": "PechuContainer" }]
+  },
+
+  // The Durable Object class that owns the container, with SQLite storage (current way; replaces "migrations").
+  "exports": { "PechuContainer": { "type": "durable-object", "storage": "sqlite" } }
+
+  // Secrets are NOT set here. Use `wrangler secret put <NAME>` (see README.md).
+}
