@@ -1,5 +1,6 @@
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { addWebmDuration } from "./audio";
 import type { Remote } from "./remote";
 
 export type FlowNode = {
@@ -256,8 +257,10 @@ export async function saveAudio(id: string, data: Blob | ArrayBuffer, ext: strin
   for (const f of readdirSync(dir)) if (f.startsWith("audio.")) rmSync(join(dir, f));
   const file = `audio.${ext}`;
   await Bun.write(join(dir, file), data);
+  // a browser recording has no length in its header, so players show a wrong progress bar; the saved file gets one
+  const stored = ext === "webm" && (await addWebmDuration(join(dir, file))) ? Bun.file(join(dir, file)) : data;
   if (remote) {
-    await remote.put(`meetings/${id}/${file}`, data); // the recording must be safe before we say it is saved
+    await remote.put(`meetings/${id}/${file}`, stored); // the recording must be safe before we say it is saved
     for (const k of await remote.list(`meetings/${id}/audio.`)) if (k !== `meetings/${id}/${file}`) await remote.delete(k);
   }
   return updateMeeting(id, { audio: { file, mime: EXT_TO_MIME[ext]! } });

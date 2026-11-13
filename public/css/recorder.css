@@ -4,6 +4,19 @@
 :root { --rec-top: #cf8a7b; --rec-bottom: #b06a5d; --rec-mark: #fff; }
 :root[data-theme="dark"] { --rec-top: #efb5a2; --rec-bottom: #d98f79; --rec-mark: #3a231d; }
 
+/* ---------- home layout ---------- */
+/* Two columns (recorder + live transcript, sources + recent) that do not wait for each other, so a tall Sources panel
+   cannot stretch the recorder card or push the live transcript away from it. */
+.rec-col { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+@media (max-width: 900px) {
+  /* one column: dissolve the wrappers so the cards stack in the order they had before */
+  .rec-col { display: contents; }
+  .rec-grid .stage { order: 1; }
+  .rec-grid .sources-panel { order: 2; }
+  .rec-grid .live-panel { order: 3; }
+  .rec-grid .recent-panel { order: 4; }
+}
+
 /* ---------- stage ---------- */
 .stage { padding: 22px 24px 28px; display: flex; flex-direction: column; align-items: center; }
 .stage-top { align-self: stretch; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 26px; margin-bottom: 14px; }

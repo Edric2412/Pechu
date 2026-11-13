@@ -77,6 +77,7 @@ function addFinal(s, text, ws) {
 }
 
 function sendChunk(s, buf) {
+  if (rec.paused) return; // paused: the muted tracks only make silence, and the live captions bill silence like speech
   if (s.ws && s.ws.readyState === 1 && !rec.reconnecting) { s.ws.send(buf); return; }
   s.pending.push(buf); // hold up to ~60 s while reconnecting
   if (s.pending.length > 600) s.pending.shift();
@@ -85,9 +86,16 @@ function sendChunk(s, buf) {
 async function onSocketClosed(s, ws) {
   if (ws !== s.ws || s.ending) return; // a rotated-out socket closing is expected
   s.ws = null;
+  if (rec.paused) return; // closed on purpose by the pause; resuming opens a new one
+  await reopenLive(s);
+}
+
+// Opens a new live-captions socket (with a few retries) and sends the audio held while there was none.
+// `now` skips the first wait: a resume after a pause is not a failure to back off from.
+async function reopenLive(s, now = false) {
   rec.reconnecting = true; emit();
   for (let i = 0; i < 5 && !s.ending; i++) {
-    await sleep(Math.min(1000 * 2 ** i, 8000));
+    await sleep(now && i === 0 ? 0 : Math.min(1000 * 2 ** i, 8000));
     try {
       const next = await openLive(s);
       s.ws = next; s.startedAt = performance.now();
@@ -108,6 +116,7 @@ async function rotate(s) {
   s.rotating = true;
   try {
     const next = await openLive(s);
+    if (rec.paused || !s.ws) { try { next.close(); } catch { /* */ } return; } // paused while it was opening: stay closed
     const old = s.ws;
     s.ws = next; s.startedAt = performance.now();
     for (const b of s.pending.splice(0)) next.send(b);
@@ -192,7 +201,7 @@ export async function startRecording(opts) {
     rec.phase = 'recording';
     s.tick = setInterval(() => { rec.elapsed = clockSec(s); emit(); }, 250);
     s.timer = setInterval(() => {
-      if (!s.ws || s.ending || s.rotating) return;
+      if (!s.ws || s.ending || s.rotating || rec.paused) return;
       if (performance.now() - s.startedAt > ROTATE_AFTER_MS) rotate(s);
     }, 4000);
     emit();
@@ -222,7 +231,9 @@ function friendly(err) {
   return err instanceof DOMException || !err?.message ? 'Recording could not start. Check the microphone and try again.' : err.message;
 }
 
-// Pause: the audio file and the clock stop, and the live captions get silence (tracks are muted) so the connection stays open.
+// Pause: the audio file and the clock stop, and so does everything that is billed. The live captions are paid for by the
+// audio they receive, silence included (and Sarvam drops a silent connection after about a minute anyway), so nothing
+// is sent while paused and the live session is ended; resuming opens a new one.
 export function pauseRecording() {
   const s = S;
   if (!s || rec.phase !== 'recording' || rec.paused || rec.reconnecting) return;
@@ -230,6 +241,16 @@ export function pauseRecording() {
   s.tracks.forEach((t) => { t.enabled = false; });
   try { if (s.mr?.state === 'recording') s.mr.pause(); } catch { /* */ }
   rec.paused = true; rec.analyser = null; emit();
+  endLive(s);
+}
+
+// Finishes the live session politely: "end" lets the last spoken turn arrive as a final transcript and the server then
+// closes the session. If it has not closed after a few seconds it is closed here.
+function endLive(s) {
+  const ws = s.ws;
+  if (!ws) return;
+  try { if (ws.readyState === 1) ws.send('end'); } catch { /* */ }
+  setTimeout(() => { if (s.ws === ws) { s.ws = null; try { ws.close(); } catch { /* */ } } }, 4000);
 }
 
 export function resumeRecording() {
@@ -239,6 +260,8 @@ export function resumeRecording() {
   s.tracks.forEach((t) => { t.enabled = true; });
   try { if (s.mr?.state === 'paused') s.mr.resume(); } catch { /* */ }
   rec.paused = false; rec.analyser = s.analyser; emit();
+  if (s.ws) { const old = s.ws; s.ws = null; try { old.close(); } catch { /* */ } } // resumed before the pause finished closing it
+  reopenLive(s, true); // audio spoken while it opens is held and sent as soon as it is ready
 }
 
 // Ends the session and returns what was captured. The caller saves it, then calls finishSaving().
