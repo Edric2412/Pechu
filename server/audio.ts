@@ -6,7 +6,7 @@
 //
 // Conversion uses GStreamer (gst-launch-1.0), which Ubuntu Desktop already has. If it is missing,
 // prepareParts() returns null and the caller sends the original file instead.
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, renameSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { UserError } from "./errors";
@@ -163,3 +163,27 @@ export async function assertWithinLimit(src: string): Promise<void> {
 }
 
 export const cleanup = (p: Parts) => rmSync(p.dir, { recursive: true, force: true });
+
+// A recording made in the browser (MediaRecorder) is a live-style WebM: its header declares no total length and it has
+// no seek index, so a player reports an infinite duration and draws a wrong progress bar (a 1 h 45 min meeting showed
+// as about a minute). Rewriting the wrapper adds both; the audio itself is copied, not re-encoded.
+// The original is replaced only when the rewrite finished and produced a whole file. On any failure the file stays
+// exactly as it was and only the progress bar stays wrong, so this never risks the recording.
+export async function addWebmDuration(path: string): Promise<boolean> {
+  if (!Bun.which("gst-launch-1.0")) return false;
+  const tmp = `${path}.fix`;
+  const proc = Bun.spawn(
+    ["gst-launch-1.0", "-q", "filesrc", `location=${path}`, "!", "matroskademux", "!", "webmmux", "!", "filesink", `location=${tmp}`],
+    { stdout: "ignore", stderr: "ignore", env: { PATH: process.env.PATH ?? "/usr/bin:/bin", HOME: tmpdir(), GST_PLUGIN_FEATURE_RANK: GST_ENV_RANK } },
+  );
+  const timeout = setTimeout(() => proc.kill(), 2 * 60 * 1000);
+  const code = await proc.exited;
+  clearTimeout(timeout);
+  // the rewrite adds an index, so it is never smaller than the original: a much smaller file means something was cut off
+  if (code === 0 && Bun.file(tmp).size >= Bun.file(path).size * 0.9) {
+    renameSync(tmp, path);
+    return true;
+  }
+  rmSync(tmp, { force: true });
+  return false;
+}
