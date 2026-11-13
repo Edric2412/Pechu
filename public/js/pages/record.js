@@ -188,7 +188,8 @@ export function recordPage({ navigate }) {
     pauseBtn.setAttribute('aria-label', paused ? 'Resume recording' : 'Pause recording');
     pauseLabel.textContent = paused ? 'Resume' : 'Pause';
     recLabel.textContent = p === 'starting' ? 'Starting…' : p === 'saving' ? 'Saving your meeting…' : 'Start recording';
-    hint.textContent = p === 'idle' && none ? 'Turn on the microphone, the device audio, or both.' : '';
+    hint.textContent = paused ? 'Paused: nothing is recorded or sent for transcription, so no credits are used.'
+      : p === 'idle' && none ? 'Turn on the microphone, the device audio, or both.' : '';
     hint.hidden = !hint.textContent;
     wave.setAnalyser(on && !paused ? rec.analyser : null);
 
