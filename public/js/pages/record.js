@@ -125,7 +125,7 @@ export function recordPage({ navigate }) {
     copyBtn.textContent = ok ? 'Copied' : 'Copy failed';
     setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
   } }, 'Copy');
-  const live = h('section', { class: 'panel s9 fill', style: { minHeight: '260px' }, 'aria-label': 'Live transcript' },
+  const live = h('section', { class: 'panel s9 fill live-panel', style: { minHeight: '260px' }, 'aria-label': 'Live transcript' },
     h('div', { class: 'panel-head' }, h('h2', null, 'Live transcript'), wordChip, h('span', { class: 'spacer' }), copyBtn),
     emptyBox, linesBox);
   linesBox.hidden = true;
@@ -151,7 +151,7 @@ export function recordPage({ navigate }) {
 
   // ---------- recent ----------
   const recentBox = h('div', { class: 'rows' });
-  const recent = h('section', { class: 'panel s3', 'aria-label': 'Recent meetings' },
+  const recent = h('section', { class: 'panel s3 recent-panel', 'aria-label': 'Recent meetings' },
     h('div', { class: 'panel-head' }, h('h2', null, 'Recent'), h('span', { class: 'spacer' }), h('a', { class: 'link', href: '#/meetings' }, 'View all')),
     recentBox);
   function renderRecent() {
@@ -235,7 +235,9 @@ export function recordPage({ navigate }) {
 
   const el = h('div', { class: 'col' },
     h('header', { class: 'head home' }, h('h1', { class: 'greeting' }, greeting(NAME)), subLine),
-    h('div', { class: 'grid even' }, stage, sources, live, recent));
+    h('div', { class: 'grid rec-grid' },
+      h('div', { class: 'rec-col s9' }, stage, live),
+      h('div', { class: 'rec-col s3' }, sources, recent)));
 
   return {
     el,
